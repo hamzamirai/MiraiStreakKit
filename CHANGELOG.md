@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **MiraiStreakKitUI library**: new `.library(name: "MiraiStreakKitUI")` product providing Duolingo-style SwiftUI views and widget content on top of the existing core (zero impact on the `MiraiStreakKit` target).
+  - `StreakTheme` with three built-in palettes (`.duolingo`, `.healora`, `.aurielle`) injected via `.streakTheme(_:)` environment modifier.
+  - `AnimatedFlameView`: gradient-masked flame with `PhaseAnimator` pulse + glow halo, active/milestone/broken states, optional bouncy tap interaction with haptics.
+  - `StreakNumberView`: giant rounded numeric display using `.contentTransition(.numericText)` for rolling-digit transitions.
+  - `WeekStripView`: locale-aware 7-day Mon–Sun row with completed/today/missed/future states and stagger-in animation.
+  - `StreakHeatmapView`: GitHub-style contribution-graph grid driven by `Streak.completedDates`.
+  - `FreezeTokenBadge`, `BestStreakBadge`: themed capsule badges.
+  - `StreakDetailView`: full Duolingo-style screen with built-in Check-In CTA, milestone celebration overlay, and freeze redemption sheet.
+  - `StreakCompactView`: themed pill replacement for the core `StreakView`.
+  - `FreezeRedemptionSheet`: drop-in sheet that calls `manager.useFreeze()`.
+  - `ConfettiView` + `MilestoneCelebrationView`: keyframe-animated celebration overlay shown when a streak milestone is reached.
+  - `StreakWidgetEntry` (`TimelineEntry` + `Codable`) and family-dispatching `StreakWidgetView`, plus `StreakSmallWidget`, `StreakMediumWidget`, `StreakLargeWidget`, and lock-screen accessory views (`accessoryCircular`, `accessoryRectangular`, `accessoryInline`).
+  - `streakWidgetContainer(theme:)` helper wrapping `.containerBackground(for: .widget)`.
+  - `InMemoryStreakStore` + `Streak.sample(length:)` + `StreakManager.preview(streak:)` for `#if DEBUG` previews and tests.
+- `Package.swift`: added `.watchOS(.v10)` platform and `MiraiStreakKitUI` target/testTarget.
+- `MiraiStreakKitUITests`: theme equality, week-strip day computation, heatmap cell count + state, widget entry `Codable` round-trip and `current(from:)` decode behavior.
+
 ## [1.1.0] - 2026-03-13
 
 ### Added
