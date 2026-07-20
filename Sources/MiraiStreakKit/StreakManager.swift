@@ -290,6 +290,87 @@ public final class StreakManager {
         return streak.freezeTokens
     }
 
+    /// Recomputes the entire streak from a source-of-truth list of completed calendar days.
+    ///
+    /// Unlike `updateStreak(on:)`, which incrementally advances the streak for a single
+    /// check-in, this method rebuilds `length`, `lastDate`, `bestStreak`, and `completedDates`
+    /// from scratch based on the full history of completed days. Use this whenever completions
+    /// can be logged or edited out of order (e.g. backfilling or editing a past day), since the
+    /// incremental approach only ever accounts for the most recent check-in.
+    ///
+    /// Freeze tokens (`freezeTokens`, `lastFreezeDate`) are left untouched. Changes are
+    /// automatically persisted to the store.
+    ///
+    /// - Parameters:
+    ///   - completedDays: Every calendar day the user completed their goal. Need not be sorted or deduplicated.
+    ///   - date: The reference "today" used to decide whether the streak is still active. Defaults to now.
+    public func recompute(fromCompletedDays completedDays: [Date], on date: Date = .now) {
+        let calendar = config.calendar
+        let sortedDays = Set(completedDays.map { calendar.startOfDay(for: $0) }).sorted()
+        let previousBest = streak.bestStreak
+
+        guard !sortedDays.isEmpty else {
+            streak.length = 0
+            streak.lastDate = nil
+            streak.completedDates = []
+            save()
+            return
+        }
+
+        var bestRun = 1
+        var runLength = 1
+        for i in 1..<sortedDays.count {
+            let previousDay = sortedDays[i - 1]
+            let currentDay = sortedDays[i]
+            if let nextDay = calendar.date(byAdding: .day, value: 1, to: previousDay),
+               calendar.isDate(nextDay, inSameDayAs: currentDay) {
+                runLength += 1
+                bestRun = max(bestRun, runLength)
+            } else {
+                runLength = 1
+            }
+        }
+
+        var activeRun = 1
+        var index = sortedDays.count - 1
+        while index > 0 {
+            let currentDay = sortedDays[index]
+            let previousDay = sortedDays[index - 1]
+            guard let dayBefore = calendar.date(byAdding: .day, value: -1, to: currentDay),
+                  calendar.isDate(dayBefore, inSameDayAs: previousDay) else {
+                break
+            }
+            activeRun += 1
+            index -= 1
+        }
+
+        let lastDay = sortedDays[sortedDays.count - 1]
+        let today = calendar.startOfDay(for: date)
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: today) ?? today
+        let streakIsActive = calendar.isDate(lastDay, inSameDayAs: today) ||
+                              calendar.isDate(lastDay, inSameDayAs: yesterday)
+        let currentLength = streakIsActive ? activeRun : 0
+
+        streak.length = currentLength
+        streak.lastDate = lastDay
+        streak.bestStreak = max(bestRun, currentLength, previousBest)
+        streak.completedDates = sortedDays
+
+        if streak.bestStreak > previousBest {
+            analyticsDelegate?.streakEventOccurred(
+                .newBestStreakAchieved(newBest: streak.bestStreak, previousBest: previousBest),
+                manager: self
+            )
+        }
+
+        analyticsDelegate?.streakEventOccurred(
+            .streakUpdated(length: streak.length, isNewStreak: false),
+            manager: self
+        )
+
+        save()
+    }
+
     private func save() {
         guard let data = try? encoder.encode(streak) else { return }
         try? store.write(data)
